@@ -5,23 +5,23 @@ import android.graphics.BitmapFactory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import xyz.javidsattar.falcon.navigator.data.repository.CameraRepository
+import xyz.javidsattar.falcon.navigator.data.repository.ControllerRepository
+import xyz.javidsattar.falcon.navigator.data.repository.model.JoystickState
 import javax.inject.Inject
-
-data class JoystickState(
-    val x: Float = 0f,
-    val y: Float = 0f,
-    val angle: Float = 0f,
-    val strength: Float = 0f
-)
 
 @HiltViewModel
 class JoystickViewModel @Inject constructor(
-    private val cameraRepository: CameraRepository
+    private val cameraRepository: CameraRepository,
+    private val controllerRepository: ControllerRepository
 ) : ViewModel() {
     private val _leftJoystickState = MutableStateFlow(JoystickState())
     val leftJoystickState: StateFlow<JoystickState> = _leftJoystickState.asStateFlow()
@@ -35,10 +35,23 @@ class JoystickViewModel @Inject constructor(
     private val _isCameraActive = MutableStateFlow(false)
     val isCameraActive: StateFlow<Boolean> = _isCameraActive.asStateFlow()
 
+    private var controlJob: Job? = null
+
     init {
-        // Initially camera is inactive as per request "switch controls socket"
-        // But to keep previous behavior we can set it to false and let user turn it on.
-        // User said: "when turned off socket closed, when turned on socket open"
+        startSendingControlData()
+    }
+
+    private fun startSendingControlData() {
+        controlJob?.cancel()
+        controlJob = viewModelScope.launch {
+            while (isActive) {
+                controllerRepository.sendControlData(
+                    _leftJoystickState.value,
+                    _rightJoystickState.value
+                )
+                delay(10) // Repeat every 10ms
+            }
+        }
     }
 
     fun toggleCamera(isActive: Boolean) {
@@ -56,7 +69,7 @@ class JoystickViewModel @Inject constructor(
             cameraRepository.getCameraStream().collect { bytes ->
                 // Convert byte array to Bitmap
                 val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                _cameraFrame.value = bitmap
+                _cameraFrame.update { bitmap }
             }
         }
     }
@@ -64,16 +77,16 @@ class JoystickViewModel @Inject constructor(
     private fun stopCameraStream() {
         viewModelScope.launch {
             cameraRepository.stopStream()
-            _cameraFrame.value = null
+            _cameraFrame.update { null }
         }
     }
 
     fun updateLeftJoystick(x: Float, y: Float, angle: Float, strength: Float) {
-        _leftJoystickState.value = JoystickState(x, y, angle, strength)
+        _leftJoystickState.update { JoystickState(x, y, angle, strength) }
     }
 
     fun updateRightJoystick(x: Float, y: Float, angle: Float, strength: Float) {
-        _rightJoystickState.value = JoystickState(x, y, angle, strength)
+        _rightJoystickState.update { JoystickState(x, y, angle, strength) }
     }
 
     override fun onCleared() {
@@ -81,5 +94,6 @@ class JoystickViewModel @Inject constructor(
         viewModelScope.launch {
             cameraRepository.stopStream()
         }
+        controlJob?.cancel()
     }
 }
