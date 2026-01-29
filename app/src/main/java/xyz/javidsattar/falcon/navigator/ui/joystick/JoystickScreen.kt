@@ -47,6 +47,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
 import xyz.javidsattar.falcon.navigator.R
 
 @Composable
@@ -73,12 +78,10 @@ fun JoystickScreen(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Replaced mipmap with vector icon to avoid XML parsing error
-                    Icon(
-                        imageVector = Icons.Default.Info,
+                    Image(
+                        painter = painterResource(R.drawable.falcon_icon),
                         contentDescription = "App Icon",
                         modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -124,11 +127,10 @@ fun JoystickScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Replaced mipmap with vector icon to avoid XML parsing error
-                    Icon(
-                        imageVector = Icons.Default.Info,
+                    Image(
+                        painter = painterResource(R.drawable.falcon_icon),
                         contentDescription = "App Icon",
                         modifier = Modifier.size(100.dp),
-                        tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
@@ -157,31 +159,47 @@ fun JoystickScreen(
                 )
             }
 
-            // Left Joystick
-            Joystick(
+            // Left Joystick Container
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 60.dp, bottom = 32.dp, end = 32.dp)
-                    .size(150.dp),
-                onMoved = { x, y ->
-                    val angle = Math.toDegrees(atan2(y.toDouble(), x.toDouble())).toFloat()
-                    val strength = hypot(x, y).coerceAtMost(1f)
-                    viewModel.updateLeftJoystick(x, y, angle, strength)
-                }
-            )
+                    .padding(start = 60.dp, bottom = 32.dp, end = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Altitude / Rotate",
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Joystick(
+                    modifier = Modifier.size(150.dp),
+                    onMoved = { x, y ->
+                        val angle = Math.toDegrees(atan2(y.toDouble(), x.toDouble())).toFloat()
+                        val strength = hypot(x, y).coerceAtMost(1f)
+                        viewModel.updateLeftJoystick(x, y, angle, strength)
+                    }
+                )
+            }
 
-            // Right Joystick
-            Joystick(
+            // Right Joystick Container
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(start = 32.dp, bottom = 32.dp, end = 60.dp)
-                    .size(150.dp),
-                onMoved = { x, y ->
-                    val angle = Math.toDegrees(atan2(y.toDouble(), x.toDouble())).toFloat()
-                    val strength = hypot(x, y).coerceAtMost(1f)
-                    viewModel.updateRightJoystick(x, y, angle, strength)
-                }
-            )
+                    .padding(start = 32.dp, bottom = 32.dp, end = 60.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Movement",
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Joystick(
+                    modifier = Modifier.size(150.dp),
+                    onMoved = { x, y ->
+                        val angle = Math.toDegrees(atan2(y.toDouble(), x.toDouble())).toFloat()
+                        val strength = hypot(x, y).coerceAtMost(1f)
+                        viewModel.updateRightJoystick(x, y, angle, strength)
+                    }
+                )
+            }
 
             // Debug Info (Optional, keeping it as it's useful)
             Text(
