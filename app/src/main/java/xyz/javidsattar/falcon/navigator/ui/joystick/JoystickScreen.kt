@@ -33,88 +33,168 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.*
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import xyz.javidsattar.falcon.navigator.R
+
 @Composable
 fun JoystickScreen(
     modifier: Modifier = Modifier,
     viewModel: JoystickViewModel = viewModel()
 ) {
-    // Debug Info
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    
     val leftState by viewModel.leftJoystickState.collectAsState()
     val rightState by viewModel.rightJoystickState.collectAsState()
-    var hasCameraPermission by remember { mutableStateOf(false) }
+    val cameraFrame by viewModel.cameraFrame.collectAsState()
+    val isCameraActive by viewModel.isCameraActive.collectAsState()
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasCameraPermission = isGranted
-    }
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                // Header
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Replaced mipmap with vector icon to avoid XML parsing error
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "App Icon",
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(id = R.string.app_name),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
+                
+                HorizontalDivider()
+                
+                // Active Camera Switch
+                NavigationDrawerItem(
+                    label = { Text("Active Camera") },
+                    selected = false,
+                    onClick = { /* No-op, handled by switch */ },
+                    badge = {
+                        Switch(
+                            checked = isCameraActive,
+                            onCheckedChange = { isActive ->
+                                viewModel.toggleCamera(isActive)
+                            }
+                        )
+                    }
+                )
+            }
+        }
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Camera Stream or Placeholder
+            if (cameraFrame != null && isCameraActive) {
+                cameraFrame?.let { bitmap ->
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Camera Stream",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            } else {
+                // Placeholder Center Content
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Replaced mipmap with vector icon to avoid XML parsing error
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "App Icon",
+                        modifier = Modifier.size(100.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(id = R.string.app_name),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = Color.White
+                    )
+                }
+            }
+            
+            // Settings Button (Top Left)
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        drawerState.open()
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
 
-    LaunchedEffect(Unit) {
-        launcher.launch(Manifest.permission.CAMERA)
-    }
+            // Left Joystick
+            Joystick(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 60.dp, bottom = 32.dp, end = 32.dp)
+                    .size(150.dp),
+                onMoved = { x, y ->
+                    val angle = Math.toDegrees(atan2(y.toDouble(), x.toDouble())).toFloat()
+                    val strength = hypot(x, y).coerceAtMost(1f)
+                    viewModel.updateLeftJoystick(x, y, angle, strength)
+                }
+            )
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (hasCameraPermission) {
-            CameraPreview()
-        } else {
+            // Right Joystick
+            Joystick(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(start = 32.dp, bottom = 32.dp, end = 60.dp)
+                    .size(150.dp),
+                onMoved = { x, y ->
+                    val angle = Math.toDegrees(atan2(y.toDouble(), x.toDouble())).toFloat()
+                    val strength = hypot(x, y).coerceAtMost(1f)
+                    viewModel.updateRightJoystick(x, y, angle, strength)
+                }
+            )
+
+            // Debug Info (Optional, keeping it as it's useful)
             Text(
-                text = "Camera permission required",
-                modifier = Modifier.align(Alignment.Center),
-                color = Color.White
+                text = "L: X:%.2f Y:%.2f | R: X:%.2f Y:%.2f".format(
+                    leftState.x, leftState.y,
+                    rightState.x, rightState.y
+                ),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp),
+                color = MaterialTheme.colorScheme.primary
             )
         }
-
-        // Left Joystick
-        Joystick(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(32.dp)
-                .size(150.dp),
-            onMoved = { x, y ->
-                // Calculate Angle and Strength
-                val angle = Math.toDegrees(atan2(y.toDouble(), x.toDouble())).toFloat()
-                val strength = hypot(x, y).coerceAtMost(1f)
-                
-                viewModel.updateLeftJoystick(
-                    x = x,
-                    y = y,
-                    angle = angle,
-                    strength = strength
-                )
-            }
-        )
-
-        // Right Joystick
-        Joystick(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(32.dp)
-                .size(150.dp),
-            onMoved = { x, y ->
-                // Calculate Angle and Strength
-                val angle = Math.toDegrees(atan2(y.toDouble(), x.toDouble())).toFloat()
-                val strength = hypot(x, y).coerceAtMost(1f)
-                
-                viewModel.updateRightJoystick(
-                    x = x,
-                    y = y,
-                    angle = angle,
-                    strength = strength
-                )
-            }
-        )
-
-        
-        Text(
-            text = "L: X:%.2f Y:%.2f | R: X:%.2f Y:%.2f".format(
-                leftState.x, leftState.y,
-                rightState.x, rightState.y
-            ),
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(32.dp),
-            color = MaterialTheme.colorScheme.primary // Use Primary Yellow
-        )
     }
 }
 
