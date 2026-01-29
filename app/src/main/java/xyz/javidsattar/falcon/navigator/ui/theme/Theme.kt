@@ -12,32 +12,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
+    primary = PrimaryYellow,
+    onPrimary = OnPrimaryDark,
+    background = BackgroundDark,
+    surface = SurfaceDark,
+    onBackground = TextPrimary,
+    onSurface = TextPrimary,
     secondary = PurpleGrey80,
     tertiary = Pink80
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
+    primary = PrimaryYellow,
+    onPrimary = OnPrimaryDark,
+    background = BackgroundDark, // Force Dark background even in Light mode for consistent UI
+    surface = SurfaceDark,
+    onBackground = TextPrimary,
+    onSurface = TextPrimary,
     secondary = PurpleGrey40,
     tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
 )
 
 @Composable
 fun FalconNavigatorTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true, // Force Dark Theme by default
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // Disable dynamic color to enforce our custom palette
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
