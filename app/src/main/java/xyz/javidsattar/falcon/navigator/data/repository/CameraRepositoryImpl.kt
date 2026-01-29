@@ -1,22 +1,23 @@
 package xyz.javidsattar.falcon.navigator.data.repository
 
-import xyz.javidsattar.falcon.navigator.data.remote.WebSocketService
+import xyz.javidsattar.falcon.navigator.data.remote.SocketService
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 class CameraRepositoryImpl @Inject constructor(
-    private val webSocketService: WebSocketService
+    private val socketService: SocketService
 ) : CameraRepository {
 
     override fun getCameraStream(): Flow<ByteArray> {
-        return webSocketService.observeCameraData()
+        return socketService.observeIncomingData()
     }
 
     override suspend fun startStream() {
-        webSocketService.connect()
+        // Hardcoded IP/Port for now, or could be injected/configured
+        socketService.connect("192.168.1.1", 8080)
     }
 
     override suspend fun stopStream() {
-        webSocketService.disconnect()
+        socketService.disconnect()
     }
 }
